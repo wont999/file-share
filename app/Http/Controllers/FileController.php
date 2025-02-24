@@ -17,7 +17,9 @@ class FileController extends Controller
     public function index()
     {
         $files = auth()->user()->files()->latest()->get();
-        return response()->json(['files' => $files]);
+        return response()->json([
+            'files' => $files
+        ]);
     }
 
     //получение ссылок для файла
@@ -44,7 +46,7 @@ class FileController extends Controller
         $fileName = time() . '_' . $originalName;
 
         //сохранение файла
-        $path = $file->storeAs('user_files', $fileName, 'public');
+        $path = $file->storeAs('user_files', $fileName, 'local');
 
         //создание записи в БД
         $file = File::create([
@@ -60,9 +62,6 @@ class FileController extends Controller
             'message' => 'Файл успешно загружен',
             'file' => $file
         ], 201);
-
-
-        return response()->json(['message' => 'Ошибка при загрузке файла'], 400);
     }
 
     //удаление файла
@@ -74,7 +73,7 @@ class FileController extends Controller
         }
 
         // удаление физического файла и записи в БД
-        Storage::disk('public')->delete($file->path);
+        Storage::disk('local')->delete($file->path);
         $file->delete();
 
         return response()->json(['message' => 'Файл успешно удален']);
