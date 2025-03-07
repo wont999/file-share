@@ -38,7 +38,7 @@ export default {
 
         <div class="form-group mb-3">
             <label for="name">Имя</label>
-            <input v-model="name" id="name" type="name" placeholder="Введите имя" class="form-control">
+            <input v-model="name" id="name" type="text" placeholder="Введите имя" class="form-control">
         </div>
 
         <div class="form-group mb-3">

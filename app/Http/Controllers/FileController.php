@@ -11,12 +11,13 @@ class FileController extends Controller
     public function __construct()
     {
         $this->middleware('auth:sanctum');
+        $this->authorizeResource(File::class, 'file');
     }
 
     //получение всех файлов пользователя
     public function index()
     {
-        $files = auth()->user()->files()->latest()->get();
+        $files = auth()->user()->files()->with('links')->latest()->get();
         return response()->json([
             'files' => $files
         ]);
@@ -25,9 +26,7 @@ class FileController extends Controller
     //получение ссылок для файла
     public function show(File $file)
     {
-        if ($file->user_id !== auth()->id()) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+
 
         $file->load('links');
 
@@ -67,10 +66,7 @@ class FileController extends Controller
     //удаление файла
     public function destroy(File $file)
     {
-        // проверка, принадлежит ли файл текущему пользователю
-        if ($file->user_id !== auth()->id()) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+
 
         // удаление физического файла и записи в БД
         Storage::disk('local')->delete($file->path);

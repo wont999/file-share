@@ -15,15 +15,15 @@ class FileLinkController extends Controller
     {
         //подключение защиты
         $this->middleware('auth:sanctum')->except(['download']);
+        $this->authorizeResource(FileLink::class, 'link');
     }
 
 
     //создание ссылки с паролем
     public function store(Request $request, File $file)
     {
-        if ($file->user_id !== auth()->id()) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $this->authorize('create', [FileLink::class, $file]);
+
         $request->validate([
             'password' => 'required|string|min:6',
         ]);
@@ -49,9 +49,8 @@ class FileLinkController extends Controller
     //получить ссылки для файла
     public function index(File $file)
     {
-        if ($file->user_id !== auth()->id()) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
+        $this->authorize('view', $file);
+
         $links = $file->links()->latest()->get();
         return response()->json([
             'links' => $links,
@@ -66,23 +65,36 @@ class FileLinkController extends Controller
         ]);
 
         $link = FileLink::where('token', $token)->firstOrFail();
-
+        if (!$link) {
+            return redirect()->route('file.download', ['token' => $token])
+            ->with('error', 'Ссылка недействительна или не существует');
+        }
         if ($link->is_used) {
-            return response()->json([
-                'message' => 'Ссылка уже использована',
-            ]);
+            // return response()->json([
+            //     'message' => 'Ссылка уже использована',
+            // ]);
+            return redirect()->route('file.download', ['token' => $token])
+            ->with('error', 'Эта ссылка уже была использована');
+        
         }
         if (!Hash::check( $request->password, $link->password)) {
-            return response()->json([
-                'message' => 'Неверный пароль'
-            ], 403);
+            // return response()->json([
+            //     'message' => 'Неверный пароль'
+            // ], 403);
+
+            return redirect()->route('file.download', ['token' => $token])
+                ->withErrors(['password' => 'Неверный пароль'])
+                ->withInput();
         }
 
         $file = $link->file;
         if (!Storage::disk('local')->exists($file->path)) {
-            return response()->json([
-                'message' => 'Файл не найден на сервере'
-            ], 404);
+            // return response()->json([
+            //     'message' => 'Файл не найден на сервере'
+            // ], 404);
+            return redirect()->back()->with('error', 'Файл не найден на сервере');
+            return redirect()->route('file.download', ['token' => $token])
+            ->with('error', 'Файл не найден на сервере');
         }
 
         $link->update(['is_used' => true]);
@@ -91,16 +103,11 @@ class FileLinkController extends Controller
             $file->original_name,
             ['Content-Type' => $file->mime_type]
         );
-
     }
 
     //удаление ссылки
     public function destroy(FileLink $link)
     {
-        if ($link->file->user_id !== auth()->id()) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
         $link->delete();
 
         return response()->json([

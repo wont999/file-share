@@ -14,5 +14,3 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::post('/files/{file}/links', [FileLinkController::class, 'store']);
     Route::delete('/links/{link}', [FileLinkController::class, 'destroy']);
 });
-
-Route::post('/file/download/{token}', [FileLinkController::class, 'download']);
