@@ -1,11 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
-    // {
-    //     path: '/get',
-    //     component: () => import('./components/Get.vue'),
-    //     name: 'get.index'
-    // },
+    {
+        path: '/',
+        component: () => import('./components/Main.vue'),
+        name: 'main'
+    },
+    {
+        path: '/main',
+        component: () => import('./components/Main.vue'),
+        name: 'main'
+    },
     {
         path: '/user/login',
         component: () => import('./components/Login.vue'),
@@ -21,6 +26,10 @@ const routes = [
         component: () => import('./components/Personal.vue'),
         name: 'user.personal'
     },
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: { name: 'main' }
+    }
 ]
 
 const router = createRouter({
@@ -28,22 +37,24 @@ const router = createRouter({
     routes
 })
 
-router.beforeEach((to, from, next)=>{
+router.beforeEach((to, from, next) => {
     const auth = localStorage.getItem('authenticated')
+
+    if (to.name === 'main') {
+        return next()
+    }
 
     if(!auth){
         if(to.name==='user.login' || to.name==='user.registration'){
             return next()
         }
-        else {
-            return next({name: 'user.login'})
-        }
+        return next({ name: 'user.login' })
     }
 
-    if(auth && to.name==='user.login' || to.name ==='user.registration' ){
-        return next({
-            name: 'user.personal'
-        })
+    if (auth) {
+        if (to.name === 'user.login' || to.name === 'user.registration') {
+            return next({ name: 'user.personal' })
+        }
     }
 
     next()

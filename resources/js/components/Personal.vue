@@ -5,7 +5,11 @@ export default {
         return {
             files: [],
             newPassword: '',
-            currentFileId: null
+            currentFileId: null,
+            currentPage: 1,
+            lastPage: 1,
+            total: 0,
+            linkPages: {} // Хранит текущую страницу для ссылок каждого файла
         }
     },
     computed: {
@@ -17,18 +21,41 @@ export default {
         this.loadFiles();
     },
     methods: {
-        loadFiles() {
+        loadFiles(page = 1) {
+            this.currentPage = page;
             axios.get('/sanctum/csrf-cookie').then(() => {
-                axios.get('/api/files')
+                axios.get(`/api/files?page=${page}`)
                     .then(response => {
-                        this.files = response.data.files;
+                        this.files = response.data.files.data;
+                        this.lastPage = response.data.files.last_page;
+                        this.total = response.data.files.total;
+
+                        this.files.forEach(file => {
+                            if (!this.linkPages[file.id]) {
+                                this.linkPages[file.id] = 1;
+                            }
+                        });
                     })
                     .catch(error => {
                         console.error(error);
                     });
             });
         },
-        
+
+        loadFileLinks(fileId, page = 1) {
+            this.linkPages[fileId] = page;
+            axios.get(`/api/files/${fileId}?page=${page}`)
+                .then(response => {
+                    const file = this.files.find(f => f.id === fileId);
+                    if (file) {
+                        file.links = response.data.file.links;
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                });
+        },
+
         deleteFile(fileId) {
             if (confirm('Вы уверены, что хотите удалить этот файл?')) {
                 axios.get('/sanctum/csrf-cookie').then(() => {
@@ -42,22 +69,22 @@ export default {
                 });
             }
         },
-        
+
         showLinkForm(fileId) {
             this.currentFileId = fileId;
             this.newPassword = '';
         },
-        
+
         hideLinkForm() {
             this.currentFileId = null;
         },
-        
+
         createLink(fileId) {
             if (!this.newPassword || this.newPassword.length < 6) {
                 alert('Пароль должен содержать не менее 6 символов');
                 return;
             }
-            
+
             axios.get('/sanctum/csrf-cookie').then(() => {
                 axios.post(`/api/files/${fileId}/links`, {
                     password: this.newPassword
@@ -71,7 +98,7 @@ export default {
                     });
             });
         },
-        
+
         deleteLink(linkId) {
             if (confirm('Вы уверены, что хотите удалить эту ссылку?')) {
                 axios.get('/sanctum/csrf-cookie').then(() => {
@@ -85,7 +112,7 @@ export default {
                 });
             }
         },
-        
+
         uploadFile() {
             const formData = new FormData();
             const file = this.$refs.fileInput.files[0];
@@ -97,15 +124,26 @@ export default {
                         'Content-Type': 'multipart/form-data'
                     }
                 })
-                .then(() => {
-                    this.$refs.fileInput.value = ''; // очищаем input
-                    this.loadFiles(); // обновляем список файлов
-                })
-                .catch(error => {
-                    console.error(error);
-                    alert('Ошибка при загрузке файла');
-                });
+                    .then(() => {
+                        this.$refs.fileInput.value = ''; // очищаем input
+                        this.loadFiles(); // обновляем список файлов
+                    })
+                    .catch(error => {
+                        console.error(error);
+                        alert('Ошибка при загрузке файла');
+                    });
             });
+        },
+
+        copyToClipboard(token) {
+            const fullUrl = `${this.baseUrl}/file/download/${token}`;
+            navigator.clipboard.writeText(fullUrl)
+                .then(() => {
+                    alert('Ссылка скопирована в буфер обмена');
+                })
+                .catch(err => {
+                    console.error('Ошибка при копировании:', err);
+                });
         }
     }
 }
@@ -114,7 +152,7 @@ export default {
 <template>
     <div class="container mt-4">
         <h2>Мои файлы</h2>
-        
+
         <!-- Форма загрузки файла -->
         <div class="card mb-4">
             <div class="card-body">
@@ -131,11 +169,11 @@ export default {
         <div v-if="files.length === 0" class="alert alert-info">
             У вас пока нет загруженных файлов
         </div>
-        
+
         <div v-else>
             <div class="card mb-3" v-for="file in files" :key="file.id">
                 <div class="card-header d-flex justify-content-between">
-                    <h5>{{ file.original_name }}</h5>
+                    <h5 class="m-2">{{ file.original_name }}</h5>
                     <div>
                         <button class="btn btn-primary me-2" @click="showLinkForm(file.id)">
                             Создать ссылку
@@ -145,63 +183,75 @@ export default {
                         </button>
                     </div>
                 </div>
-                
-                
+
+
                 <div class="card-body">
                     <div class="mb-2">
                         <strong>Размер:</strong> {{ Math.round(file.size / 1024) }} КБ
                     </div>
-                    
+
                     <!-- форма создания ссылки -->
                     <div v-if="currentFileId === file.id" class="mb-3 p-3 border rounded">
                         <div class="mb-3">
                             <label for="password" class="form-label">Пароль для ссылки</label>
                             <div class="input-group">
-                                <input type="password" class="form-control" v-model="newPassword" 
+                                <input type="password" class="form-control" v-model="newPassword"
                                        placeholder="Минимум 6 символов">
                                 <button class="btn btn-success" @click="createLink(file.id)">Создать</button>
                                 <button class="btn btn-secondary" @click="hideLinkForm">Отмена</button>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- список ссылок -->
                     <div class="mt-3">
-                        <h6>Ссылки:</h6>
                         <div v-if="!file.links || file.links.length === 0" class="text-muted">
                             Для этого файла еще не создано ссылок
                         </div>
                         <div v-else class="table-responsive">
                             <table class="table table-sm">
                                 <thead>
-                                    <tr>
-                                        <th>Статус</th>
-                                        <th>
-                                            Ссылка<br>
-                                            <small class="text-muted">
-                                                {{ baseUrl }}/file/download/[токен]
-                                            </small>
-                                        </th>
-                                        <th>Действия</th>
-                                    </tr>
+                                <tr>
+                                    <th>Статус</th>
+                                    <th>
+                                        Ссылка<br>
+
+                                    </th>
+                                    <th>Действия</th>
+                                </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="link in file.links" :key="link.id">
-                                        <td>
-                                            <span class="badge" :class="link.is_used ? 'bg-danger' : 'bg-success'">
+                                <tr v-for="link in file.links" :key="link.id">
+                                    <td>
+                                            <span class="badge p-2 fs-6 d-inline-block text-center"
+                                                  style="width: 120px;"
+                                                  :class="link.is_used ? 'bg-secondary' : 'bg-light text-dark'">
                                                 {{ link.is_used ? 'Использована' : 'Активна' }}
                                             </span>
-                                        </td>
-                                        <td>{{ link.token }}</td>
-                                        <td>
-                                            <a :href="'/file/download/' + link.token" class="btn btn-sm btn-info me-1" target="_blank">
-                                                Скачать
-                                            </a>
-                                            <button class="btn btn-sm btn-danger" @click="deleteLink(link.id)">
-                                                Удалить
+                                    </td>
+                                    <td>
+                                        <div class="input-group">
+                                            <span class="input-group-text" id="basic-addon3">{{
+                                                    baseUrl
+                                                }}/file/download/</span>
+                                            <span class="form-control" id="basic-url">{{ link.token }}</span>
+                                            <button class="btn btn-outline-secondary" type="button"
+                                                    @click="copyToClipboard(link.token)">
+                                                <i class="fa-regular fa-clipboard"></i>
                                             </button>
-                                        </td>
-                                    </tr>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a :href="'/file/download/' + link.token"
+                                           class="me-1 btn btn-outline-secondary " target="_blank" title="Скачать файл">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        <button class="me-1 btn btn-outline-secondary " @click="deleteLink(link.id)"
+                                                title="Удалить ссылку">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
                                 </tbody>
                             </table>
                         </div>

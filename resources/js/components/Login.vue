@@ -6,18 +6,36 @@ export default {
         return{
             email: null,
             password: null,
+            error: null
         }
     },
     methods:{
         login(){
+            this.error = null;
             axios.get('/sanctum/csrf-cookie').then(response => {
-                axios.post('/login', {email: this.email, password: this.password})
+                axios.post('/login', 
+                    {email: this.email, password: this.password},
+                    {
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    }
+                )
                     .then( response => {
-                        localStorage.setItem('authenticated', 'true');
-                        this.$router.push({name: 'user.personal'})
+                        console.log('Login response:', response);
+                        if (response.status === 200 || response.status === 204) {
+                            console.log('Setting authenticated flag');
+                            localStorage.setItem('authenticated', 'true');
+                            console.log('Redirecting to personal page');
+                            this.$router.replace({name: 'user.personal'})
+                                .catch(err => {
+                                    console.error('Navigation error:', err);
+                                });
+                        }
                     })
                     .catch(err=>{
-                        console.log(err.response)
+                        console.error('Login error:', err);
+                        this.error = err.response?.data?.message || 'Произошла ошибка при авторизации';
                     })
             });
         }
@@ -29,6 +47,10 @@ export default {
     <div class="login-form mt-3">
 
         <h2 class="mb-4">Вход в систему</h2>
+
+        <div v-if="error" class="alert alert-danger mb-3">
+            {{ error }}
+        </div>
 
         <div class="form-group mb-3">
             <label for="email">Email</label>

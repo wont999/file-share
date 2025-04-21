@@ -6,6 +6,7 @@ use App\Models\File;
 use App\Models\FileLink;
 use App\Policies\FileLinkPolicy;
 use App\Policies\FilePolicy;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -26,5 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(File::class, FilePolicy::class);
         Gate::policy(FileLink::class, FileLinkPolicy::class);
+
+        Paginator::defaultView('vendor.pagination.bootstrap-5');
     }
 }

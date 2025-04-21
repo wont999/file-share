@@ -17,7 +17,7 @@ class FileController extends Controller
     //получение всех файлов пользователя
     public function index()
     {
-        $files = auth()->user()->files()->with('links')->latest()->get();
+        $files = auth()->user()->files()->with('links')->latest()->paginate(10);
         return response()->json([
             'files' => $files
         ]);
@@ -26,9 +26,9 @@ class FileController extends Controller
     //получение ссылок для файла
     public function show(File $file)
     {
-
-
-        $file->load('links');
+        $file->load(['links' => function($query) {
+            $query->latest()->paginate(5);
+        }]);
 
         return response()->json(['file' => $file]);
     }

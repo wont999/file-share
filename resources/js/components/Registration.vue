@@ -8,22 +8,40 @@ export default {
             email: null,
             password: null,
             password_confirmation: null,
+            error: null
         }
     },
 
     methods: {
         register() {
+            this.error = null;
             axios.get('/sanctum/csrf-cookie')
                 .then(response => {
-                    axios.post('/register', {
-                        name: this.name,
-                        email: this.email,
-                        password: this.password,
-                        password_confirmation: this.password_confirmation
-                    })
+                    axios.post('/register', 
+                        {
+                            name: this.name,
+                            email: this.email,
+                            password: this.password,
+                            password_confirmation: this.password_confirmation
+                        },
+                        {
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        }
+                    )
                         .then(response => {
-                            localStorage.setItem('authenticated', 'true');
-                            this.$router.push({name: 'user.personal'})
+                            if (response.status === 201 || response.status === 200) {
+                                localStorage.setItem('authenticated', 'true');
+                                this.$router.replace({name: 'user.personal'})
+                                    .catch(err => {
+                                        console.error('Navigation error:', err);
+                                    });
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Registration error:', err);
+                            this.error = err.response?.data?.message || 'Произошла ошибка при регистрации';
                         })
                 })
         }
@@ -35,6 +53,10 @@ export default {
     <div class="register-form mt-3">
 
         <h2 class="mb-4">Регистрация</h2>
+
+        <div v-if="error" class="alert alert-danger mb-3">
+            {{ error }}
+        </div>
 
         <div class="form-group mb-3">
             <label for="name">Имя</label>
