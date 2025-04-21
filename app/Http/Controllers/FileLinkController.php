@@ -70,18 +70,11 @@ class FileLinkController extends Controller
             ->with('error', 'Ссылка недействительна или не существует');
         }
         if ($link->is_used) {
-            // return response()->json([
-            //     'message' => 'Ссылка уже использована',
-            // ]);
             return redirect()->route('file.download', ['token' => $token])
             ->with('error', 'Эта ссылка уже была использована');
 
         }
         if (!Hash::check( $request->password, $link->password)) {
-            // return response()->json([
-            //     'message' => 'Неверный пароль'
-            // ], 403);
-
             return redirect()->route('file.download', ['token' => $token])
                 ->withErrors(['password' => 'Неверный пароль'])
                 ->withInput();
@@ -89,10 +82,6 @@ class FileLinkController extends Controller
 
         $file = $link->file;
         if (!Storage::disk('local')->exists($file->path)) {
-            // return response()->json([
-            //     'message' => 'Файл не найден на сервере'
-            // ], 404);
-            //return redirect()->back()->with('error', 'Файл не найден на сервере');
             return redirect()->route('file.download', ['token' => $token])
             ->with('error', 'Файл не найден на сервере');
         }
