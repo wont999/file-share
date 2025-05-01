@@ -5,11 +5,7 @@ export default {
         return {
             files: [],
             newPassword: '',
-            currentFileId: null,
-            currentPage: 1,
-            lastPage: 1,
-            total: 0,
-            linkPages: {} // Хранит текущую страницу для ссылок каждого файла
+            currentFileId: null
         }
     },
     computed: {
@@ -21,39 +17,16 @@ export default {
         this.loadFiles();
     },
     methods: {
-        loadFiles(page = 1) {
-            this.currentPage = page;
+        loadFiles() {
             axios.get('/sanctum/csrf-cookie').then(() => {
-                axios.get(`/api/files?page=${page}`)
+                axios.get(`/api/files`)
                     .then(response => {
-                        this.files = response.data.files.data;
-                        this.lastPage = response.data.files.last_page;
-                        this.total = response.data.files.total;
-
-                        this.files.forEach(file => {
-                            if (!this.linkPages[file.id]) {
-                                this.linkPages[file.id] = 1;
-                            }
-                        });
+                        this.files = response.data.files
                     })
                     .catch(error => {
                         console.error(error);
                     });
             });
-        },
-
-        loadFileLinks(fileId, page = 1) {
-            this.linkPages[fileId] = page;
-            axios.get(`/api/files/${fileId}?page=${page}`)
-                .then(response => {
-                    const file = this.files.find(f => f.id === fileId);
-                    if (file) {
-                        file.links = response.data.file.links;
-                    }
-                })
-                .catch(error => {
-                    console.error(error);
-                });
         },
 
         deleteFile(fileId) {
